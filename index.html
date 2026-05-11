@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Zerko Level Format Prototype</title>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0; min-height:100vh; overflow:hidden; touch-action:none; user-select:none;
+  font-family:Arial,Helvetica,sans-serif; color:#fff;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(91,58,204,.42), transparent 42%),
+    radial-gradient(circle at 50% 70%, rgba(84,40,190,.22), transparent 55%),
+    linear-gradient(#17134a 0%, #080726 100%);
+}
+.game{
+  width:min(100vw,430px); height:100vh; margin:auto; display:flex; flex-direction:column;
+  background:transparent; padding:8px 12px 10px;
+}
+header{
+  height:86px; display:grid; grid-template-columns:88px 1fr 88px; align-items:center;
+  padding:6px 2px 4px; font-weight:900; gap:8px;
+}
+.menu{font-size:30px}
+.status{
+  font-size:22px; font-weight:900; letter-spacing:.5px; text-align:center;
+  color:#f8edff; text-shadow:0 3px 0 rgba(0,0,0,.32), 0 0 8px rgba(160,116,255,.25);
+}
+.board-wrap{
+  flex:1; min-height:0; margin:0 2px 10px; border-radius:34px; display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(145deg,#7652e5 0%,#4d2db4 42%,#322084 100%);
+  box-shadow:
+    0 14px 28px rgba(0,0,0,.42),
+    inset 0 3px 3px rgba(255,255,255,.18),
+    inset 0 -9px 14px rgba(0,0,0,.22);
+  padding:26px;
+  position:relative;
+}
+.board-wrap::after{
+  content:""; position:absolute; inset:17px; border-radius:24px;
+  background:linear-gradient(#151044,#0a0926);
+  box-shadow:inset 0 6px 14px rgba(0,0,0,.46), inset 0 0 0 2px rgba(169,132,255,.16);
+  z-index:0;
+}
+#board{position:relative; z-index:1;}
+#board{position:relative}
+.white-cell{
+  position:absolute;
+  background:linear-gradient(145deg,#4a31aa 0%,#31207f 58%,#22145f 100%);
+  box-shadow:
+    inset 0 2px 2px rgba(255,255,255,.12),
+    inset 0 -3px 5px rgba(0,0,0,.18);
+}
+.white-cell.edge-t{border-top:2px solid #070b2f}
+.white-cell.edge-r{border-right:2px solid #070b2f}
+.white-cell.edge-b{border-bottom:2px solid #070b2f}
+.white-cell.edge-l{border-left:2px solid #070b2f}
+.white-cell.merge-r::after{
+  content:""; position:absolute; right:-1px; top:0; width:1px; height:100%;
+  background:linear-gradient(#090d36,#050821); z-index:2;
+}
+.white-cell.merge-d::before{
+  content:""; position:absolute; left:0; bottom:-1px; width:100%; height:1px;
+  background:linear-gradient(#090d36,#050821); z-index:2;
+}
+.label-cell{
+  position:absolute; display:flex; align-items:center; justify-content:center; pointer-events:none; z-index:12;
+  color:white; font-size:18px; font-weight:900; text-shadow:0 2px 2px rgba(0,0,0,.62);
+  background:linear-gradient(145deg,#4a31aa 0%,#31207f 58%,#22145f 100%);
+  border:0;
+  box-shadow:
+    inset 0 2px 2px rgba(255,255,255,.20),
+    inset 0 -4px 6px rgba(0,0,0,.25),
+    0 4px 7px rgba(0,0,0,.45);
+}
+.label-cell::after{
+  content:none;
+}
+.tray{
+  height:250px; position:relative; margin:0 2px 8px; border-radius:22px; padding:12px;
+  background:linear-gradient(#16104c,#090827);
+  box-shadow:
+    0 12px 24px rgba(0,0,0,.38),
+    inset 0 0 0 2px rgba(126,92,255,.25),
+    inset 0 5px 12px rgba(255,255,255,.035);
+  overflow:hidden;
+}
+.piece{
+  position:absolute; z-index:20; touch-action:none; cursor:grab; filter:drop-shadow(0 5px 4px rgba(0,0,0,.18));
+}
+.piece.dragging{z-index:100; cursor:grabbing; filter:drop-shadow(0 12px 12px rgba(0,0,0,.45))}
+.piece-cell{
+  position:absolute; display:flex; align-items:flex-start; justify-content:flex-start;
+  padding:5px 0 0 8px; font-size:22px; font-weight:900; color:white;
+  text-shadow:0 2px 3px rgba(0,0,0,.48);
+  background:var(--piece-bg, linear-gradient(#ff574d,#cb1717));
+  box-shadow:
+    inset 0 2px 2px rgba(255,255,255,.30),
+    inset 0 -5px 8px rgba(0,0,0,.22),
+    0 4px 7px rgba(0,0,0,.32);
+}
+.piece-cell::after{
+  content:""; position:absolute; width:22px; height:22px; right:8px; top:50%;
+  transform:translateY(-50%); border-radius:50%; z-index:-1;
+  background:var(--stud-bg, linear-gradient(#ff756d,#d51f1f));
+  box-shadow:inset 0 2px 2px rgba(255,255,255,.35), 0 2px 4px rgba(0,0,0,.38);
+}
+.message{
+  position:absolute; left:50%; top:78px; transform:translateX(-50%);
+  padding:12px 18px; border-radius:18px; background:rgba(0,0,0,.38);
+  font-size:15px; font-weight:800; opacity:0; pointer-events:none; transition:.2s; z-index:200; text-align:center;
+}
+.message.show{opacity:1}
+
+.level-popup{
+  position:fixed; inset:0; z-index:500; display:none; align-items:center; justify-content:center;
+  background:rgba(0,0,0,.55); backdrop-filter:blur(4px);
+}
+.level-popup.show{display:flex}
+.level-panel{
+  width:min(88vw,420px); max-height:78vh; overflow:auto; padding:18px; border-radius:24px;
+  background:linear-gradient(#2a1b78,#0b092f);
+  box-shadow:0 16px 40px rgba(0,0,0,.55), inset 0 0 0 2px rgba(255,255,255,.06);
+}
+.level-panel h2{margin:0 0 14px; text-align:center; font-size:22px}
+.level-grid{
+  display:grid; grid-template-columns:repeat(5,1fr); gap:10px;
+}
+.level-choice{
+  border:0; border-radius:14px; min-height:52px; font-weight:900; color:white; font-size:16px;
+  background:linear-gradient(#333392,#1b1b5c);
+  box-shadow:0 4px 10px rgba(0,0,0,.28), inset 0 0 0 1px rgba(255,255,255,.07);
+}
+.level-choice.active{
+  background:linear-gradient(#ff5a50,#cb1919);
+}
+.level-close{
+  margin-top:14px; width:100%; border:0; border-radius:14px; padding:12px; font-weight:900; color:white;
+  background:linear-gradient(#252476,#111149);
+}
+
+
+#dropHighlight{
+  position:absolute;
+  z-index:6;
+  pointer-events:none;
+}
+.drop-ghost-cell{
+  position:absolute;
+  border-radius:10px;
+  background:rgba(255,255,255,.22);
+  box-shadow:
+    inset 0 0 0 2px rgba(255,255,255,.28),
+    0 0 16px rgba(169,132,255,.45);
+  opacity:.95;
+}
+
+
+.label-cell.sep-left::after,
+.label-cell.sep-right::after,
+.label-cell.sep-top::after,
+.label-cell.sep-bottom::after{
+  content:"";
+  position:absolute;
+  background:#070b2f;
+}
+
+.label-cell.sep-left::after{
+  right:0;
+  top:0;
+  width:1px;
+  height:100%;
+}
+
+.label-cell.sep-right::after{
+  left:0;
+  top:0;
+  width:1px;
+  height:100%;
+}
+
+.label-cell.sep-top::after{
+  left:0;
+  bottom:0;
+  width:100%;
+  height:1px;
+}
+
+.label-cell.sep-bottom::after{
+  left:0;
+  top:0;
+  width:100%;
+  height:1px;
+}
+
+
+.confetti-piece{
+  position:fixed;
+  width:8px;
+  height:12px;
+  border-radius:2px;
+  pointer-events:none;
+  z-index:700;
+  animation:confettiFall 900ms ease-out forwards;
+}
+
+@keyframes confettiFall{
+  0%{transform:translate(0,0) rotate(0deg); opacity:1}
+  100%{transform:translate(var(--dx),var(--dy)) rotate(520deg); opacity:0}
+}
+
+.board-wrap, #tray{
+  transition:
+    transform .55s cubic-bezier(.22,.8,.2,1),
+    opacity .55s cubic-bezier(.22,.8,.2,1);
+  will-change:transform, opacity;
+}
+
+.level-exit-left .board-wrap,
+.level-exit-left #tray,
+body.level-exit-left .piece{
+  transform:translateX(-140vw);
+  opacity:.92;
+}
+
+.level-enter-right .board-wrap,
+.level-enter-right #tray{
+  transition:none !important;
+  transform:translateX(140vw);
+  opacity:.92;
+}
+
+.level-enter-animate .board-wrap,
+.level-enter-animate #tray{
+  transition:
+    transform .55s cubic-bezier(.22,.8,.2,1),
+    opacity .55s cubic-bezier(.22,.8,.2,1);
+  transform:translateX(0);
+  opacity:1;
+}
+
+body.level-exit-left .piece{
+  transition:
+    transform .55s cubic-bezier(.22,.8,.2,1),
+    opacity .55s cubic-bezier(.22,.8,.2,1);
+  will-change:transform, opacity;
+}
+
+
+.btn{
+  border:0;
+  border-radius:14px;
+  padding:10px 14px;
+  min-width:78px;
+  background:linear-gradient(145deg,#6e4bf1,#3a249d);
+  color:#fff;
+  font-weight:900;
+  font-size:15px;
+  box-shadow:
+    inset 0 2px 2px rgba(255,255,255,.18),
+    inset 0 -4px 8px rgba(0,0,0,.28),
+    0 5px 10px rgba(0,0,0,.35);
+}
+
+
+.piece.dragging{
+  transition:none !important;
+}
+
+</style>
+</head>
+<body>
+<main class="game" id="game">
+  <header>
+    <button class="btn" id="levelSelect">Levels</button>
+    <div>
+      <div class="status" id="levelName">LEVEL 1</div>
+      <div class="status" id="status" style="display:none"></div>
+    </div>
+    <button class="btn" id="reset">Reset</button>
+  </header>
+  <div class="message" id="message"></div>
+  <div class="level-popup" id="levelPopup">
+    <div class="level-panel">
+      <h2>Level Seç</h2>
+      <div class="level-grid" id="levelGrid"></div>
+      <button class="level-close" id="levelClose">Kapat</button>
+    </div>
+  </div>
+  <section class="board-wrap"><div id="board"></div><div id="dropHighlight"></div></section>
+  <section class="tray" id="tray"></section>
+</main>
+
+<script>
+const levels = [
+  {
+    name: "LEVEL 1",
+    board: [
+      ["a", "a", "a1"],
+      ["a", "a"]
+    ],
+    pieces: [
+      { value: 1, shape: [[1,1],[1,1]] }
+    ]
+  },
+  {
+    name: "LEVEL 2",
+    board: [
+      ["a", "a", "a2"],
+      ["a", "a"]
+    ],
+    pieces: [
+      { value: 1, shape: [[1,1]] },
+      { value: 1, shape: [[1,1]] }
+    ]
+  },
+  {
+    name: "LEVEL 3",
+    board: [
+      ["a", "a", "a", "a", "4a"],
+      ["a", "a", "a", "a"],
+      ["a", "a", "a", "a"]
+    ],
+    pieces: [
+      { value: 1, shape: [[1,1]] },
+      { value: 1, shape: [[1],[1],[1]] },
+      { value: 1, shape: [[1],[1],[1]] },
+      { value: 1, shape: [[1,1],[1,1]] }
+    ]
+  },
+  {
+    name: "LEVEL 4",
+    board: [
+      ["X", "a", "a", "b", "b", "X"],
+      ["a1", "a", "a", "b", "b", "b1"],
+      ["c1", "c", "c", "d", "d", "d1"],
+      ["X", "c", "c", "d", "d", "X"]
+    ],
+    pieces: [
+      { value: 1, shape: [[1,1],[1,1]] },
+      { value: 1, shape: [[1,1],[1,1]] },
+      { value: 1, shape: [[1,1],[1,1]] },
+      { value: 1, shape: [[1,1],[1,1]] }
+    ]
+  },
+  {
+    name: "LEVEL 5",
+    board: [
+      ["X", "a", "a", "b", "b", "X"],
+      ["a1", "a", "a", "b", "b", "b1"],
+      ["c1", "c", "c", "d", "d", "d1"],
+      ["X", "c", "c", "d", "d", "X"]
+    ],
+    pieces: [
+      { value: 1, shape: [[1,1,1,1],[1,1,1,1],[1,1,1,1],[1,1,1,1]] }
+    ]
+  },
+  {
+    name: "LEVEL 6",
+    board: [
+      ["X", "a", "a", "X"],
+      ["a2", "a", "a", "X"],
+      ["b1", "b", "b", "X"]
+    ],
+    pieces: [
+      { value: 1, shape: [[1,1],[1,1]] },
+      { value: 1, shape: [[1,1]] }
+    ]
+  },
+  {
+    name: "LEVEL 7",
+    board: [
+      ["1a", "a", "a", "b", "b", "b2"],
+      ["1c", "c", "c", "d", "d", "d2"]
+    ],
+    pieces: [
+      { value: 1, shape: [[1],[1]] },
+      { value: 1, shape: [[1],[1]] },
+      { value: 1, shape: [[1,1],[1,1]] }
+    ]
+  },
+  {
+    name: "LEVEL 8",
+    board: [
+      ["2a", "a", "a", "b", "b", "b2"],
+      ["2c", "c", "c", "d", "d", "d2"]
+    ],
+    pieces: [
+      { value: 1, shape: [[1],[1]] },
+      { value: 1, shape: [[1],[1]] },
+      { value: 1, shape: [[1,1],[1,1]] }
+    ]
+  },
+  {
+    name: "LEVEL 9",
+    board: [
+      ["X", "X", "X", "a1", "X", "X"],
+      ["X", "X", "4c", "a", "X", "X"],
+      ["b1", "b", "c", "c", "X", "X"],
+      ["X", "X", "c", "c", "d", "d1"],
+      ["X", "X", "e", "X", "X", "X"],
+      ["X", "X", "e1", "X", "X", "X"]
+    ],
+    pieces: [
+      { value: 1, shape: [[1],[1]] },
+      { value: 1, shape: [[1],[1]] },
+      { value: 1, shape: [[1,1]] },
+      { value: 1, shape: [[1,1]] }
+    ]
+  },
+  {
+    name: "LEVEL 10",
+    board: [
+      ["X", "X", "X", "a1", "X", "X", "X"],
+      ["X", "X", "b2", "a", "a", "X", "X"],
+      ["c1", "c", "b", "d1", "h", "h", "h1"],
+      ["X", "X", "b", "d", "f", "f2", "X"],
+      ["X", "X", "b", "e", "f", "g", "g1"],
+      ["X", "X", "e1", "e", "X", "X", "X"]
+    ],
+    pieces: [
+      { value: 1, shape: [[1],[1]] },
+      { value: 1, shape: [[1],[1]] },
+      { value: 1, shape: [[1,1]] },
+      { value: 1, shape: [[1,1]] },
+      { value: 1, shape: [[1,1]] },
+      { value: 1, shape: [[1,1]] },
+      { value: 1, shape: [[1,1]] }
+    ]
+  },
+  {
+    name: "LEVEL 11",
+    board: [
+      ["X", "a", "a", "d", "d", "X"],
+      ["a2", "a", "a", "d", "d", "d2"],
+      ["b1", "b", "b", "c", "c", "c1"],
+      ["X", "b", "b", "c", "c", "X"]
+    ],
+    pieces: [
+      { value: 1, shape: [[1,1,1,1],[1,1,1,1]] },
+      { value: 2, shape: [[1,1,1,1],[1,1,1,1]] }
+    ]
+  },
+  {
+    name: "LEVEL 12",
+    board: [
+      ["X", "a", "a", "d", "d", "X"],
+      ["a5", "a", "a", "d", "d", "d5"],
+      ["b2", "b", "b", "c", "c", "c2"],
+      ["X", "b", "b", "c", "c", "X"]
+    ],
+    pieces: [
+      { value: 1, shape: [[1,1,1,1]] },
+      { value: 1, shape: [[1,1,1,1]] },
+      { value: 1, shape: [[1,1,1,1]] },
+      { value: 4, shape: [[1,1,1,1]] }
+    ]
+  },
+  {
+    name: "LEVEL 13",
+    board: [
+      ["a5", "a", "b", "b", "b1", "X"],
+      ["X", "a", "c", "c", "X", "X"],
+      ["X", "a", "c", "c", "c4", "X"],
+      ["X", "a", "d", "d", "d3", "X"]
+    ],
+    pieces: [
+      { value: 3, shape: [[1,1],[1,1]] },
+      { value: 5, shape: [[1],[1],[1],[1]] },
+      { value: 1, shape: [[1,1],[1,1]] }
+    ]
+  },
+  {
+    name: "LEVEL 14",
+    board: [
+      ["6a", "2b", "X", "X"],
+      ["a", "b", "c", "X"],
+      ["a", "b", "c", "c1"],
+      ["a", "d", "d", "d4"]
+    ],
+    pieces: [
+      { value: 4, shape: [[1,1,1]] },
+      { value: 1, shape: [[1,1]] },
+      { value: 1, shape: [[1,1]] },
+      { value: 1, shape: [[1],[1]] }
+    ]
+  },
+  {
+    name: "LEVEL 15",
+    board: [
+      ["9a", "a", "a", "b", "b5"],
+      ["4c", "c", "e", "e", "e3"],
+      ["3f", "f", "f", "g", "g1"],
+      ["X", "h", "j", "k", "X"],
+      ["X", "h2", "j3", "k3", "X"]
+    ],
+    pieces: [
+      { value: 3, shape: [[1,1]] },
+      { value: 1, shape: [[1,1]] },
+      { value: 2, shape: [[1],[1]] },
+      { value: 3, shape: [[1,1]] },
+      { value: 4, shape: [[1],[1]] },
+      { value: 5, shape: [[1,1]] }
+    ]
+  },
+  {
+    name: "LEVEL 16",
+    board: [
+      ["a2", "b3", "5d", "X", "X"],
+      ["a", "b", "d", "d", "X"],
+      ["c", "b", "f", "j", "j4"],
+      ["c", "b", "f", "h", "h5"],
+      ["c", "e", "f", "g", "X"],
+      ["6c", "e3", "f2", "5g", "X"]
+    ],
+    pieces: [
+      { value: 1, shape: [[1,1]] },
+      { value: 1, shape: [[1,1]] },
+      { value: 1, shape: [[1,1]] },
+      { value: 3, shape: [[1,1]] },
+      { value: 1, shape: [[1],[1]] },
+      { value: 4, shape: [[1],[1]] },
+      { value: 2, shape: [[1],[1]] },
+      { value: 5, shape: [[1],[1]] }
+    ]
+  },
+  {
+    name: "LEVEL 17",
+    board: [
+      ["X", "1k", "5j", "8h", "3f", "X"],
+      ["X", "k", "j", "h", "f", "X"],
+      ["X", "X", "h", "h", "f", "X"],
+      ["a1", "a", "a", "c", "e", "2e"],
+      ["b3", "b", "c", "c", "d", "4d"],
+      ["X", "X", "X", "9c", "X", "X"]
+    ],
+    pieces: [
+      { value: 1, shape: [[1,1]] },
+      { value: 1, shape: [[1,1]] },
+      { value: 4, shape: [[1,1]] },
+      { value: 3, shape: [[1,1]] },
+      { value: 2, shape: [[1,1]] },
+      { value: 2, shape: [[1,1]] },
+      { value: 1, shape: [[1],[1]] },
+      { value: 5, shape: [[1],[1]] }
+    ]
+  },
+  {
+    name: "LEVEL 18",
+    board: [
+      ["X", "X", "X", "b3", "X", "X", "X", "X", "X", "X"],
+      ["X", "X", "X", "b", "c4", "d3", "X", "f5", "X", "X"],
+      ["a1", "a", "a", "c", "c", "d", "X", "f", "X", "X"],
+      ["X", "o2", "o", "p", "X", "d", "e", "e", "e7", "X"],
+      ["X", "X", "p3", "p", "k", "d", "g", "X", "X", "X"],
+      ["X", "X", "X", "k5", "k", "X", "g", "h", "X", "X"],
+      ["X", "X", "X", "X", "m", "X", "g3", "h", "j", "j3"],
+      ["X", "n2", "n", "n", "m4", "X", "X", "h4", "X", "X"]
+    ],
+    pieces: [
+      { value: 1, shape: [[1,1]] },
+      { value: 1, shape: [[1,1]] },
+      { value: 1, shape: [[1,1]] },
+      { value: 1, shape: [[1,1]] },
+      { value: 2, shape: [[1,1]] },
+      { value: 2, shape: [[1,1]] },
+      { value: 3, shape: [[1,1]] },
+      { value: 2, shape: [[1],[1]] },
+      { value: 2, shape: [[1],[1]] },
+      { value: 3, shape: [[1],[1]] },
+      { value: 5, shape: [[1],[1]] },
+      { value: 4, shape: [[1],[1]] }
+    ]
+  }
+];
+
+
+let currentLevelIndex = 0;
+let level = levels[currentLevelIndex];
+
+let CELL = 56;
+const boardEl = document.getElementById("board");
+const trayEl = document.getElementById("tray");
+const dropHighlightEl = document.getElementById("dropHighlight");
+const gameEl = document.getElementById("game");
+const statusEl = document.getElementById("status");
+const levelNameEl = document.getElementById("levelName");
+const messageEl = document.getElementById("message");
+const resetBtn = document.getElementById("reset");
+
+const piecePalettes = [
+  { bg:"linear-gradient(145deg,#b735f3,#7b18c9)", stud:"linear-gradient(#d95dff,#8f25d5)" },
+  { bg:"linear-gradient(145deg,#1489ff,#0057db)", stud:"linear-gradient(#39a3ff,#0864e8)" },
+  { bg:"linear-gradient(145deg,#ff4e42,#cf1515)", stud:"linear-gradient(#ff6a61,#d91c1c)" },
+  { bg:"linear-gradient(145deg,#ffc328,#ee8b00)", stud:"linear-gradient(#ffd34e,#f39b04)" },
+  { bg:"linear-gradient(145deg,#18d853,#009f2d)", stud:"linear-gradient(#3bea6b,#09aa34)" },
+  { bg:"linear-gradient(145deg,#ff8c23,#f05a00)", stud:"linear-gradient(#ffa83f,#f36a08)" },
+  { bg:"linear-gradient(145deg,#18d1da,#009aa6)", stud:"linear-gradient(#3ae7ef,#08a8b1)" },
+  { bg:"linear-gradient(145deg,#a335ff,#6a1dcf)", stud:"linear-gradient(#bd5aff,#7827dc)" }
+];
+const levelSelectBtn = document.getElementById("levelSelect");
+const levelPopupEl = document.getElementById("levelPopup");
+const levelGridEl = document.getElementById("levelGrid");
+const levelCloseBtn = document.getElementById("levelClose");
+
+let whiteCells = [];
+let labelCells = {};
+let labelSet = new Set();
+let fillableSet = new Set();
+let pieces = new Map();
+let placed = new Map();
+let values = {};
+let drag = null;
+
+function key(x,y){return `${x},${y}`}
+
+function parseToken(token){
+  token = String(token).trim();
+  if(token === "X" || token === "x" || token === "" || token === "0") return null;
+
+  // Desteklenen yazımlar:
+  // "1a" = a grubunda 1 yazan sayı celli
+  // "a1" = a grubunda 1 yazan sayı celli
+  // "a"  = a grubunda normal doldurulabilir cell
+  let match = token.match(/^(\d+)([a-zA-Z]+)$/);
+  if(match) return { value: Number(match[1]), region: match[2] };
+
+  match = token.match(/^([a-zA-Z]+)(\d+)$/);
+  if(match) return { value: Number(match[2]), region: match[1] };
+
+  match = token.match(/^([a-zA-Z]+)$/);
+  if(match) return { value: null, region: match[1] };
+
+  return null;
+}
+
+function parseLevel(){
+  whiteCells = [];
+  labelCells = {};
+  labelSet = new Set();
+  fillableSet = new Set();
+
+  level.board.forEach((row,y)=>{
+    row.forEach((token,x)=>{
+      const parsed = parseToken(token);
+      if(!parsed) return;
+      if(parsed.value !== null){
+        // Sayı tablarının altında artık kare board cell'i yok,
+        // ama kenar/curve hesabında komşu gibi sayılıyor.
+        labelCells[parsed.region] = {x,y,value:parsed.value};
+        labelSet.add(key(x,y));
+      } else {
+        whiteCells.push({x,y,region:parsed.region});
+        fillableSet.add(key(x,y));
+      }
+    });
+  });
+}
+
+function resetValues(){
+  values = {};
+  Object.entries(labelCells).forEach(([region,data]) => values[region] = data.value);
+}
+
+function showMessage(text){
+  messageEl.textContent = text;
+  messageEl.classList.add("show");
+  clearTimeout(showMessage.t);
+  showMessage.t = setTimeout(()=>messageEl.classList.remove("show"), 1300);
+}
+
+function burstConfetti(){
+  const colors = ["#ff4e42","#ffc328","#18d853","#1489ff","#b735f3","#18d1da","#ffffff"];
+  const cx = window.innerWidth / 2;
+  const cy = window.innerHeight * 0.32;
+
+  for(let i=0;i<34;i++){
+    const p = document.createElement("div");
+    p.className = "confetti-piece";
+    p.style.left = `${cx}px`;
+    p.style.top = `${cy}px`;
+    p.style.background = colors[i % colors.length];
+
+    const angle = (Math.PI * 2 * i) / 34;
+    const distance = 80 + Math.random() * 140;
+    const dx = Math.cos(angle) * distance;
+    const dy = Math.sin(angle) * distance + 90 + Math.random() * 80;
+
+    p.style.setProperty("--dx", `${dx}px`);
+    p.style.setProperty("--dy", `${dy}px`);
+    p.style.animationDelay = `${Math.random() * 80}ms`;
+
+    document.body.appendChild(p);
+    setTimeout(()=>p.remove(), 1200);
+  }
+}
+
+function goNextLevelAnimated(){
+  burstConfetti();
+
+  // Önce 1 saniye mevcut level ekranda kalsın
+  setTimeout(()=>{
+
+    // Sonra sola kayarak çıksın
+    gameEl.classList.add("level-exit-left");
+    document.body.classList.add("level-exit-left");
+
+    setTimeout(()=>{
+      currentLevelIndex++;
+      level = levels[currentLevelIndex];
+
+      // Yeni level sağ tarafta hazır başlasın
+      gameEl.classList.remove("level-exit-left");
+      document.body.classList.remove("level-exit-left");
+      gameEl.classList.add("level-enter-right");
+
+      resetGame();
+
+      requestAnimationFrame(()=>{
+        requestAnimationFrame(()=>{
+          // Sağdan merkeze aksın
+          gameEl.classList.add("level-enter-animate");
+          gameEl.classList.remove("level-enter-right");
+
+          setTimeout(()=>{
+            gameEl.classList.remove("level-enter-animate");
+          }, 600);
+        });
+      });
+
+    }, 560);
+
+  }, 1000);
+}
+
+function sameRegion(x,y,region){
+  return whiteCells.some(c=>c.x===x && c.y===y && c.region===region);
+}
+
+function anyWhiteCell(x,y){
+  return whiteCells.some(c=>c.x===x && c.y===y);
+}
+
+function sameVisualRegion(x,y,region){
+  return sameRegion(x,y,region) || (
+    labelSet.has(key(x,y)) &&
+    Object.entries(labelCells).some(([r,c])=>r===region && c.x===x && c.y===y)
+  );
+}
+
+function anyVisualCell(x,y,region){
+  // Normal board cell komşuları, farklı grup olsa bile kenarı düzleştirir.
+  // Sayı tabı ise sadece kendi grubuna bağlıysa düzleştirir.
+  return anyWhiteCell(x,y) || (
+    labelSet.has(key(x,y)) &&
+    Object.entries(labelCells).some(([r,c])=>r===region && c.x===x && c.y===y)
+  );
+}
+
+function drawBoard(){
+  boardEl.innerHTML = "";
+  const rows = level.board.length;
+  const cols = Math.max(...level.board.map(r=>r.length));
+
+  const wrap = document.querySelector(".board-wrap");
+  const availableW = Math.max(220, wrap.clientWidth - 54);
+  const availableH = Math.max(220, wrap.clientHeight - 54);
+  CELL = Math.floor(Math.min(58, availableW / cols, availableH / rows));
+  CELL = Math.max(30, CELL);
+
+  boardEl.style.width = `${cols*CELL}px`;
+  boardEl.style.height = `${rows*CELL}px`;
+  setTimeout(syncDropHighlightLayer, 0);
+
+  whiteCells.forEach(({x,y,region})=>{
+    const d = document.createElement("div");
+    d.className = "white-cell";
+    d.dataset.region = region;
+    d.style.left = `${x*CELL}px`;
+    d.style.top = `${y*CELL}px`;
+    d.style.width = `${CELL}px`;
+    d.style.height = `${CELL}px`;
+
+    const sameL = sameVisualRegion(x-1,y,region);
+    const sameR = sameVisualRegion(x+1,y,region);
+    const sameU = sameVisualRegion(x,y-1,region);
+    const sameD = sameVisualRegion(x,y+1,region);
+
+    const anyL = anyVisualCell(x-1,y,region);
+    const anyR = anyVisualCell(x+1,y,region);
+    const anyU = anyVisualCell(x,y-1,region);
+    const anyD = anyVisualCell(x,y+1,region);
+
+    // Aynı grup içi birleşir; farklı grup veya dış kenar koyu çizgiyle ayrılır.
+    if(sameR) d.classList.add("merge-r");
+    if(sameD) d.classList.add("merge-d");
+    if(!sameU) d.classList.add("edge-t");
+    if(!sameR) d.classList.add("edge-r");
+    if(!sameD) d.classList.add("edge-b");
+    if(!sameL) d.classList.add("edge-l");
+
+    // Curve sadece yanında/üstünde-altında hiçbir board cell yoksa olur.
+    // Farklı grup komşuysa düz kalır; arayı koyu border ayırır.
+    d.style.borderTopLeftRadius = (!anyL && !anyU) ? "14px" : "0";
+    d.style.borderTopRightRadius = (!anyR && !anyU) ? "14px" : "0";
+    d.style.borderBottomLeftRadius = (!anyL && !anyD) ? "14px" : "0";
+    d.style.borderBottomRightRadius = (!anyR && !anyD) ? "14px" : "0";
+
+    boardEl.appendChild(d);
+  });
+
+  Object.entries(labelCells).forEach(([region,data])=>{
+    const l = document.createElement("div");
+    l.className = "label-cell";
+    l.dataset.label = region;
+    const hasL = sameRegion(data.x-1,data.y,region);
+    const hasR = sameRegion(data.x+1,data.y,region);
+    const hasU = sameRegion(data.x,data.y-1,region);
+    const hasD = sameRegion(data.x,data.y+1,region);
+
+    const tabW = Math.max(24, CELL * 0.56);
+    const tabH = Math.max(28, CELL * 0.92);
+
+    // Sayı hücresi artık tam grid değil: bağlı olduğu grubun kenarına yapışık yarım çember/tab.
+    if(hasR){
+      l.style.left = `${data.x*CELL + CELL - tabW + 3}px`;
+      l.style.top = `${data.y*CELL + (CELL - tabH)/2}px`;
+      l.style.width = `${tabW}px`;
+      l.style.height = `${tabH}px`;
+      l.style.borderRadius = `${tabH/2}px 0 0 ${tabH/2}px`;
+      l.classList.add("sep-left");
+    } else if(hasL){
+      l.style.left = `${data.x*CELL - 3}px`;
+      l.style.top = `${data.y*CELL + (CELL - tabH)/2}px`;
+      l.style.width = `${tabW}px`;
+      l.style.height = `${tabH}px`;
+      l.style.borderRadius = `0 ${tabH/2}px ${tabH/2}px 0`;
+      l.classList.add("sep-right");
+    } else if(hasD){
+      l.style.left = `${data.x*CELL + (CELL - tabH)/2}px`;
+      l.style.top = `${data.y*CELL + CELL - tabW + 3}px`;
+      l.style.width = `${tabH}px`;
+      l.style.height = `${tabW}px`;
+      l.style.borderRadius = `${tabW/2}px ${tabW/2}px 0 0`;
+      l.classList.add("sep-top");
+    } else {
+      l.style.left = `${data.x*CELL + (CELL - tabH)/2}px`;
+      l.style.top = `${data.y*CELL - 3}px`;
+      l.style.width = `${tabH}px`;
+      l.style.height = `${tabW}px`;
+      l.style.borderRadius = `0 0 ${tabW/2}px ${tabW/2}px`;
+      l.classList.add("sep-bottom");
+    }
+
+    l.textContent = values[region];
+    boardEl.appendChild(l);
+  });
+}
+
+function normalizeShape(shape){
+  const cells = [];
+  shape.forEach((row,y)=>row.forEach((v,x)=>{ if(v) cells.push([x,y]); }));
+  return cells;
+}
+
+function createPiece(data, index){
+  const cells = normalizeShape(data.shape);
+  const el = document.createElement("div");
+  el.className = "piece";
+  el.dataset.id = `p${index}`;
+  const palette = piecePalettes[index % piecePalettes.length];
+  el.style.setProperty("--piece-bg", palette.bg);
+  el.style.setProperty("--stud-bg", palette.stud);
+
+  const maxX = Math.max(...cells.map(c=>c[0]));
+  const maxY = Math.max(...cells.map(c=>c[1]));
+
+  cells.forEach(([x,y],i)=>{
+    const c = document.createElement("div");
+    c.className = "piece-cell";
+    c.style.left = `${x*CELL}px`;
+    c.style.top = `${y*CELL}px`;
+    c.style.width = `${CELL}px`;
+    c.style.height = `${CELL}px`;
+    c.textContent = i===0 ? data.value : "";
+
+    const hasL = cells.some(([cx,cy])=>cx===x-1 && cy===y);
+    const hasR = cells.some(([cx,cy])=>cx===x+1 && cy===y);
+    const hasU = cells.some(([cx,cy])=>cx===x && cy===y-1);
+    const hasD = cells.some(([cx,cy])=>cx===x && cy===y+1);
+    c.style.borderTopLeftRadius = (!hasL && !hasU) ? "12px" : "0";
+    c.style.borderTopRightRadius = (!hasR && !hasU) ? "12px" : "0";
+    c.style.borderBottomLeftRadius = (!hasL && !hasD) ? "12px" : "0";
+    c.style.borderBottomRightRadius = (!hasR && !hasD) ? "12px" : "0";
+    el.appendChild(c);
+  });
+
+  const w = (maxX+1)*CELL;
+  const h = (maxY+1)*CELL;
+  el.style.width = `${w}px`;
+  el.style.height = `${h}px`;
+
+  const trayW = trayEl.clientWidth || 496;
+  const col = index % 4;
+  const row = Math.floor(index / 4);
+  const slotW = Math.max(78, (trayEl.clientWidth - 38) / 4);
+  const slotH = 76;
+  const startX = 18 + col * slotW;
+  const startY = 20 + row * slotH;
+  el.dataset.homeX = startX;
+  el.dataset.homeY = startY;
+  el.style.left = `${startX}px`;
+  el.style.top = `${startY}px`;
+
+  trayEl.appendChild(el);
+  pieces.set(el.dataset.id, {id:el.dataset.id, value:data.value, cells, el});
+  el.addEventListener("pointerdown", pointerDown);
+}
+
+
+function clearDropHighlight(){
+  dropHighlightEl.innerHTML = "";
+}
+
+function syncDropHighlightLayer(){
+  const boardRect = boardEl.getBoundingClientRect();
+  const wrapRect = document.querySelector(".board-wrap").getBoundingClientRect();
+
+  dropHighlightEl.style.left = `${boardRect.left - wrapRect.left}px`;
+  dropHighlightEl.style.top = `${boardRect.top - wrapRect.top}px`;
+  dropHighlightEl.style.width = `${boardRect.width}px`;
+  dropHighlightEl.style.height = `${boardRect.height}px`;
+}
+
+function showDropHighlight(id, gx, gy){
+  clearDropHighlight();
+  syncDropHighlightLayer();
+
+  const piece = pieces.get(id);
+  if(!piece) return;
+
+  piece.cells.forEach(([x,y])=>{
+    const g = document.createElement("div");
+    g.className = "drop-ghost-cell";
+    g.style.left = `${(gx + x) * CELL + CELL * 0.08}px`;
+    g.style.top = `${(gy + y) * CELL + CELL * 0.08}px`;
+    g.style.width = `${CELL * 0.84}px`;
+    g.style.height = `${CELL * 0.84}px`;
+    dropHighlightEl.appendChild(g);
+  });
+}
+
+function updateDropHighlight(id, clientX, clientY){
+  if(!drag){
+    clearDropHighlight();
+    return;
+  }
+
+  const snap = getSnap(clientX, clientY);
+  if(snap && canPlace(id, snap.x, snap.y)){
+    drag.validSnap = snap;
+    showDropHighlight(id, snap.x, snap.y);
+  } else {
+    drag.validSnap = null;
+    clearDropHighlight();
+  }
+}
+
+
+function pointerDown(e){
+  const el = e.currentTarget;
+  const id = el.dataset.id;
+  const rect = el.getBoundingClientRect();
+
+  placed.delete(id);
+  updateNumbers();
+
+  // Parent değişince koordinat sistemi kaymasın diye sürükleme sırasında body'ye alıp
+  // viewport koordinatlarıyla hareket ettiriyoruz.
+  drag = {
+    id,
+    el,
+    offsetX: e.clientX - rect.left,
+    offsetY: e.clientY - rect.top,
+    liftY: Math.max(42, CELL * 0.85),
+    validSnap: null
+  };
+
+  el.classList.add("dragging");
+  document.body.appendChild(el);
+  el.style.left = `${rect.left}px`;
+  el.style.top = `${rect.top}px`;
+
+  movePiece(e.clientX,e.clientY);
+  updateDropHighlight(id, e.clientX, e.clientY);
+  window.addEventListener("pointermove", pointerMove);
+  window.addEventListener("pointerup", pointerUp, {once:true});
+  window.addEventListener("pointercancel", pointerUp, {once:true});
+}
+
+function pointerMove(e){
+  if(!drag) return;
+  movePiece(e.clientX,e.clientY);
+  updateDropHighlight(drag.id, e.clientX, e.clientY);
+}
+
+function pointerUp(e){
+  if(!drag) return;
+  const {id,el} = drag;
+  el.classList.remove("dragging");
+  window.removeEventListener("pointermove", pointerMove);
+
+  const snap = drag.validSnap;
+  clearDropHighlight();
+
+  if(snap && canPlace(id,snap.x,snap.y)) placePiece(id,snap.x,snap.y);
+  else {
+    sendHome(id);
+  }
+
+  drag = null;
+  updateNumbers();
+  checkWin();
+}
+
+function movePiece(clientX,clientY){
+  drag.el.style.left = `${clientX - drag.offsetX}px`;
+  drag.el.style.top = `${clientY - drag.offsetY - drag.liftY}px`;
+}
+
+function getSnap(clientX,clientY){
+  const boardRect = boardEl.getBoundingClientRect();
+
+  // Snap/highlight parmak noktasından değil, yukarı kaldırılmış blockun gerçek konumundan hesaplanır.
+  const pieceLeft = clientX - drag.offsetX;
+  const pieceTop = clientY - drag.offsetY - drag.liftY;
+
+  const localX = pieceLeft - boardRect.left;
+  const localY = pieceTop - boardRect.top;
+  const gx = Math.round(localX/CELL);
+  const gy = Math.round(localY/CELL);
+
+  if(Math.abs(localX - gx*CELL) > CELL * 0.42 || Math.abs(localY - gy*CELL) > CELL * 0.42) return null;
+  return {x:gx,y:gy};
+}
+
+function canPlace(id,gx,gy){
+  const piece = pieces.get(id);
+  const occupied = new Set();
+
+  for(const [pid,pos] of placed.entries()){
+    if(pid===id) continue;
+    pieces.get(pid).cells.forEach(([x,y])=>occupied.add(key(pos.x+x,pos.y+y)));
+  }
+
+  return piece.cells.every(([x,y])=>{
+    const k = key(gx+x,gy+y);
+    return fillableSet.has(k) && !occupied.has(k);
+  });
+}
+
+function placePiece(id,gx,gy){
+  const piece = pieces.get(id);
+  const boardRect = boardEl.getBoundingClientRect();
+
+  // Drag sırasında piece body içinde viewport koordinatıyla çalışıyor.
+  // Bırakınca da body içinde kalıyor; bu yüzden game offsetini çıkarmıyoruz.
+  piece.el.style.left = `${boardRect.left + gx*CELL}px`;
+  piece.el.style.top = `${boardRect.top + gy*CELL}px`;
+
+  document.body.appendChild(piece.el);
+  placed.set(id,{x:gx,y:gy});
+}
+
+function sendHome(id){
+  const piece = pieces.get(id);
+  trayEl.appendChild(piece.el);
+  piece.el.style.left = `${piece.el.dataset.homeX}px`;
+  piece.el.style.top = `${piece.el.dataset.homeY}px`;
+  placed.delete(id);
+}
+
+function updateNumbers(){
+  resetValues();
+
+  for(const [id,pos] of placed.entries()){
+    const piece = pieces.get(id);
+    const touched = new Set();
+
+    piece.cells.forEach(([cx,cy])=>{
+      const bx = pos.x + cx;
+      const by = pos.y + cy;
+      const hit = whiteCells.find(c=>c.x===bx && c.y===by);
+      if(hit && values[hit.region] !== undefined) touched.add(hit.region);
+    });
+
+    touched.forEach(region => values[region] -= piece.value);
+  }
+
+  document.querySelectorAll(".label-cell").forEach(el=>{
+    const v = values[el.dataset.label];
+    el.textContent = v;
+    el.style.color = v === 0 ? "#87ff9b" : v < 0 ? "#ff6868" : "#fff";
+  });
+
+  const left = Object.values(values).reduce((sum,v)=>sum + Math.max(0,v),0);
+  statusEl.textContent = `Kalan toplam: ${left}`;
+}
+
+function checkWin(){
+  const allPlaced = level.pieces.every((_,i)=>placed.has(`p${i}`));
+  const allZero = Object.values(values).every(v=>v===0);
+
+  if(allPlaced && allZero){
+    if(currentLevelIndex < levels.length - 1){
+      goNextLevelAnimated();
+    } else {
+      burstConfetti();
+      showMessage("Tüm levellar tamamlandı!");
+    }
+  }
+}
+
+function resetGame(){
+  clearDropHighlight();
+  // Önceki leveldan body üzerinde kalan yerleştirilmiş/drag edilmiş kırmızı blockları temizle.
+  document.querySelectorAll(".piece").forEach(el => el.remove());
+
+  level = levels[currentLevelIndex];
+  levelNameEl.textContent = level.name || `LEVEL ${currentLevelIndex + 1}`;
+  placed.clear();
+  trayEl.innerHTML = "";
+  pieces.clear();
+  parseLevel();
+  resetValues();
+  drawBoard();
+  level.pieces.forEach(createPiece);
+  updateNumbers();
+}
+
+
+function buildLevelPopup(){
+  levelGridEl.innerHTML = "";
+  levels.forEach((lvl, index)=>{
+    const btn = document.createElement("button");
+    btn.className = "level-choice";
+    if(index === currentLevelIndex) btn.classList.add("active");
+    btn.textContent = index + 1;
+    btn.addEventListener("click", ()=>{
+      currentLevelIndex = index;
+      levelPopupEl.classList.remove("show");
+      resetGame();
+    });
+    levelGridEl.appendChild(btn);
+  });
+}
+
+function openLevelPopup(){
+  buildLevelPopup();
+  levelPopupEl.classList.add("show");
+}
+
+levelSelectBtn.addEventListener("click", openLevelPopup);
+levelCloseBtn.addEventListener("click", ()=>levelPopupEl.classList.remove("show"));
+levelPopupEl.addEventListener("click", (e)=>{
+  if(e.target === levelPopupEl) levelPopupEl.classList.remove("show");
+});
+
+
+resetBtn.addEventListener("click", resetGame);
+resetGame();
+</script>
+</body>
+</html>
